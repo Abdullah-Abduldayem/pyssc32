@@ -1,0 +1,64 @@
+#!/usr/bin/env ssc32yaml.py
+# -*- mode: yaml -*-
+# vim:set et ts=2 sw=2:
+!Script
+time: 1.0
+movements:
+- !Movement &release
+  grip:
+    pos: 2400
+  time: 1.0
+  wait: 2.0
+- !Movement &lift_up
+  joint3:
+    deg: -20
+  joint2:
+    deg: 20
+  joint1:
+    deg: -60
+  wait: 1.0
+  time: 1.0
+- !Movement &to_object
+  joint0:
+    deg: -60.0
+  time: 1.0
+  wait: 1.0
+- !Movement &lift_down
+  joint1:
+    deg: -40
+  joint2:
+    deg: 0
+  joint3:
+    deg: -40
+  time: 1.0
+  wait: 1.0
+- !Movement &grab
+  grip:
+    pos: 1200
+  time: 1.0
+  wait: 1.0
+- *lift_up
+- !Movement &to_target
+  joint0:
+    deg: 60.0
+  time: 2.0
+  wait: 1.0
+- *lift_down
+- *release
+- *lift_up
+- !Movement &go_default
+  grip:
+    pos: 2400
+  joint0:
+    deg: 0.0
+  joint1:
+    deg: -130.0
+  joint2:
+    deg: -45.0
+  joint3:
+    deg: 55.0
+  joint4:
+    deg: 0.0
+  time: 1.0
+  wait: 0
+

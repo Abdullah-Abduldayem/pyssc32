@@ -1,0 +1,102 @@
+#!/usr/bin/env ssc32yaml.py
+# -*- mode: yaml -*-
+# vim:set et ts=2 sw=2:
+!Script
+time: 1.0
+movements:
+- !Movement &go_up
+  grip:
+    pos: 2400
+  joint0:
+    deg: 0
+  joint1:
+    deg: -110
+  joint2:
+    deg: 45
+  joint3:
+    deg: -35
+  joint4:
+    deg: 0
+  time: 1.0
+  wait: 2.0
+- !Movement &move_joint0_0
+  joint0:
+    deg: -60
+  wait: 1.0
+  time: 1.0
+- !Movement &move_joint0_1
+  joint0:
+    deg: 60
+  wait: 1.0
+  time: 2.0
+- *go_up
+- !Movement &move_joint1_0
+  joint1:
+    deg: -30
+  wait: 1.0
+  time: 1.0
+- !Movement &move_joint1_1
+  joint1:
+    deg: -140
+  wait: 1.0
+  time: 2.0
+- *go_up
+- !Movement &move_joint2_0
+  joint2:
+    deg: -45
+  wait: 1.0
+  time: 1.0
+- !Movement &move_joint2_1
+  joint2:
+    deg: 45
+  wait: 1.0
+  time: 2.0
+- *go_up
+- !Movement &move_joint3_0
+  joint3:
+    deg: -60
+  wait: 1.0
+  time: 1.0
+- !Movement &move_joint3_1
+  joint3:
+    deg: 60
+  wait: 1.0
+  time: 2.0
+- *go_up
+- !Movement &move_joint4_0
+  joint4:
+    deg: -80
+  wait: 1.0
+  time: 1.0
+- !Movement &move_joint4_1
+  joint4:
+    deg: 80
+  wait: 1.0
+  time: 2.0
+- *go_up
+- !Movement &move_grip_0
+  grip:
+    pos: 1200
+  wait: 2.0
+  time: 1.0
+- !Movement &move_grip_1
+  grip:
+    pos: 2400
+  wait: 1.0
+  time: 1.0
+- !Movement &go_default
+  grip:
+    pos: 2400
+  joint0:
+    deg: 0.0
+  joint1:
+    deg: -130.0
+  joint2:
+    deg: -45.0
+  joint3:
+    deg: 55.0
+  joint4:
+    deg: 0.0
+  time: 1.0
+  wait: 0
+

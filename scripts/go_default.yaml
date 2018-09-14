@@ -1,0 +1,22 @@
+#!/usr/bin/env ssc32yaml.py
+# -*- mode: yaml -*-
+# vim:set et ts=2 sw=2:
+!Script
+time: 1.0
+movements:
+- !Movement &go_default
+  grip:
+    pos: 2400
+  joint0:
+    deg: 0.0
+  joint1:
+    deg: -130.0
+  joint2:
+    deg: -45.0
+  joint3:
+    deg: 55.0
+  joint4:
+    deg: 0.0
+  time: 1.0
+  wait: 0
+
