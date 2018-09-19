@@ -157,4 +157,3 @@ class Script(yaml.YAMLObject):
     def __repr__(self):
         return '<Script time={0} {1}>'.format(
             self.time, self.movements)
-

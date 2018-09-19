@@ -1,6 +1,0 @@
-syntax: glob
-*.pyc
-*.swp
-build/*
-dist/*
-pyssc32.egg-info/*

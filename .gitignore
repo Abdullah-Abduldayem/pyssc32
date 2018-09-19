@@ -1,0 +1,9 @@
+build/
+pyssc32.egg-info/
+dist/
+docs/_build
+
+.settings/
+.project
+.pydevproject
+*.pyc
