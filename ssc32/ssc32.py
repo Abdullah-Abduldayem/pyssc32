@@ -117,8 +117,9 @@ class SSC32(object):
         self.ser.flushInput()
         
         ## Check that this is actually an SSC32 board
-        if (not "SSC32" in self.get_firmware_version()):
-            raise Exception("No SSC32 board detected")
+        version = self.get_firmware_version()
+        if (not "SSC32" in version):
+            raise Exception("Device on port {} is not a valid SSC32 board. Make sure the baud rate is correct. Received firmware version: ".format(port, version))
         
         self._servos = [Servo(self._servo_on_changed, i) for i in xrange(count)]
 
@@ -129,7 +130,10 @@ class SSC32(object):
         """
         Close serial port
         """
-        self.ser.close()
+        try:
+            self.ser.close()
+        except:
+            pass
 
     def __del__(self):
         self.close()

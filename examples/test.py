@@ -3,7 +3,7 @@ sys.path.append("..")
 import ssc32
 import time
 
-ssc = ssc32.SSC32("/dev/ttyUSB0", 9600, count=16)
+ssc = ssc32.SSC32("/dev/ttyUSB0", 115200, count=16)
 print('Version', ssc.get_firmware_version())
 print('is_done', ssc.is_done())
 

@@ -13,12 +13,13 @@ Installation
 ::
 
     git clone https://github.com/Abdullah-Abduldayem/pyssc32.git
+    cd pyssc32
     
     # For python2
-    sudo python3 pyssc32/setup.py install
+    sudo python setup.py install
     
     # For python3
-    sudo python3 pyssc32/setup.py install
+    sudo python3 setup.py install
 
 Example
 =======
