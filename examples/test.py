@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/user/dev/pyssc32")
+sys.path.append("..")
 import ssc32
 import time
 

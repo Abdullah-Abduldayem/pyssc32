@@ -5,6 +5,7 @@ Movement scripting.
 
 import time
 import yaml
+import sys
 from copy import copy
 
 __all__ = [
@@ -87,7 +88,13 @@ class Movement(yaml.YAMLObject):
         self.joints = []
         self.time = float(data.pop('time', 0))
         self.wait = float(data.pop('wait', 0))
-        for k, v in data.iteritems():
+        
+        if sys.version_info >= (3, 0):
+            items = data.items()
+        else:
+            items = data.iteritems()
+        
+        for k, v in items:
             self.joints.append((k,
                                 v.pop('deg', None),
                                 v.pop('rad', None),

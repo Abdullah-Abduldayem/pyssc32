@@ -3,10 +3,13 @@
 
 import os
 import sys
-import ssc32
 import glob
 import threading
 from PyQt4 import Qt
+
+sys.path = [".."] + sys.path
+from ssc32 import SSC32
+#import ssc32
 from ssc32yaml import load_yaml, load_config
 
 
@@ -19,8 +22,10 @@ class MainWindow(Qt.QMainWindow):
 
         for scr in glob.glob(os.path.join(os.path.dirname(__file__), 'scripts', '*.yaml')):
             self.scripts[os.path.basename(scr)] = load_yaml(scr)
+            
+        print(config)
 
-        self.ssc = ssc32.SSC32(config['port'], config['baud'], config=config['config'])
+        self.ssc = SSC32(config['port'], config['baud'], config=config['config'])
 
         widget = Qt.QWidget()
         layout = Qt.QHBoxLayout()
@@ -91,7 +96,7 @@ class MainWindow(Qt.QMainWindow):
         def inner(val_):
             val = self.axis[name].value()
             self.ssc[name].position = val
-            print "Commit {0}: {1}".format(name, val)
+            print("Commit {0}: {1}".format(name, val))
             self.ssc.commit()
             self.update_state()
 

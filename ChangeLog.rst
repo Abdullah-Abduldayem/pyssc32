@@ -1,5 +1,11 @@
 .. -*- mode: rst -*-
 
+0.5.0
+~~~~~
+
+- Compatability with Python3
+- Added documentation
+
 0.4.1
 ~~~~~
 

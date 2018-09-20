@@ -10,7 +10,8 @@ import struct
 import time
 import os
 
-from servo import Servo
+sys.path.append('..')
+from ssc32.servo import Servo
 
 try:
     xrange
@@ -62,9 +63,11 @@ class SSC32Serial(serial.Serial):
         """
         
         val = self.read_until('\r', size)
-        if (val[-1] == "\r"):
-            val = val[0:-1]
-            
+        
+        if (len(val) > 0):
+            if (val[-1] == "\r"):
+                val = val[0:-1]
+                
         if sys.version_info >= (3, 0):
             val = val.decode()
             

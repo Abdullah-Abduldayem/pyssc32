@@ -5,7 +5,7 @@ pyssc32
 :author: Abdullah Abdul-Dayem
 :source: `https://github.com/Abdullah-Abduldayem/pyssc32/ <https://github.com/Abdullah-Abduldayem/pyssc32/>`_
 
-Documentation for pyssc32, a Python library for the Lynxmotion SSC32/SSC32U servo controller.
+Documentation for pyssc32, a Python library for operating the Lynxmotion SSC32/SSC32U servo controller using UART/serial port.
 
 Contents
 ==================

@@ -8,7 +8,7 @@ import ssc32
 from optparse import OptionParser
 
 
-DEFAULT_CFG = '$HOME/.ssc32.rc'
+DEFAULT_CFG = os.path.abspath('../examples/example.cfg')
 
 def load_yaml(filename):
     with open(filename, 'r') as fd:
@@ -30,14 +30,8 @@ def abspath(path):
 
 def load_config(cfg_fname=DEFAULT_CFG):
     cfg_fname = abspath(cfg_fname)
-    try:
-        cfg = load_yaml(cfg_fname)
-    except:
-        cfg = {
-            'port': '/dev/ttyUSB0',
-            'baud': 115200,
-            'config': abspath('$HOME/.ssc32.servo')
-        }
+
+    cfg = load_yaml(cfg_fname)
     return cfg
 
 def main():
@@ -51,7 +45,7 @@ def main():
     options, args = parser.parse_args()
 
     if len(args) != 1:
-        print 'Error args: ', args
+        print('Error args: ', args)
         return 1
 
     conf = load_config(options.cfg_fname)
