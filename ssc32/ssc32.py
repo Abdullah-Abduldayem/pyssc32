@@ -236,17 +236,34 @@ class SSC32(object):
         return r
 
 
-    def is_done(self):
+    def is_done(self, verbose=False):
         """
         Checks if movement is finished
         
+        For some reason, is_done() sometimes sticks to False, even if the joint has moved to the target.
+        If is_done returns false, but the joint angles have reached the target position, we will consider that a success
+        
+        :param bool verbose: If True, print status info
         :return: True if movement is finished, False otherwise
         :rtype: bool
         """
         self.ser.flushInput()
         self.ser.write_line('Q')
-        r = self.ser.read(1)
-        return r == '.'
+        done = (self.ser.read(1) == '.')
+        
+        if done:
+            return True
+        
+        ## Sometimes this gets stuck on "false". Check the individual motors
+        done = True
+        for s in self._servos:
+            if not s.is_done():
+                if (verbose):
+                    print("Servo {} ({}) not done".format(s.num, s.name))
+                done = False
+                break
+        
+        return done
     
     
     def query_pulse_width(self, servo):
@@ -275,7 +292,7 @@ class SSC32(object):
         """
         serv = self[servo]
         self.ser.write_line('STOP {}'.format(serv.num))
-
+        serv.is_moving = False
 
     ##########
     ## SSC32 I/O COMMANDS
@@ -378,24 +395,14 @@ class SSC32(object):
     ##########
     ## QUALITY OF LIFE FUNCTIONS
     ##########
-    def wait_for_movement_completion(self):
+    def wait_for_movement_completion(self, verbose=False):
         """
         Wait for movement to end
         
-        For some reason, is_done() sometimes sticks to False, even if the joint has moved to the target.
-        If is_done returns false, but the joint angles have reached the target position, we will consider that a success
+        :param bool verbose: If True, print status info
         """
         
-        while not self.is_done():
-            done = True
-            for s in self._servos:
-                if not s.is_done():
-                    done = False
-                    break
-            
-            if (done):
-                break
-            
+        while not self.is_done(verbose):
             time.sleep(0.01)
 
 
@@ -514,7 +521,7 @@ class Servo(object):
     """
     MIN_CHANNEL = 0
     MAX_CHANNEL = 31
-    def __init__(self, ssc, on_changed_callback, num, name=None, pos=1500):
+    def __init__(self, ssc, on_changed_callback, num, name=None, pos=None):
         """
         :param func on_changed_callback: Callback function position is changed
         :param int num: Servo number
@@ -533,7 +540,7 @@ class Servo(object):
         self.min = 500
         self.max = 2500
         self.reached_threshold = 10
-        if(type(pos) != int):
+        if(pos is not None and type(pos) != int):
             raise TypeError("Position must be an integer")
         
         self.ssc = ssc
@@ -582,6 +589,9 @@ class Servo(object):
 
     @position.setter
     def position(self, pos):
+        if (pos == None):
+            return
+        
         pos = int(pos)
         if pos > self.max:
             pos = self.max
@@ -686,7 +696,8 @@ class Servo(object):
             return reached
             
         else:
-            return False
+            ## Not moving
+            return True
 
     def _get_cmd_string(self):
         """
