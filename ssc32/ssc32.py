@@ -10,6 +10,7 @@ import struct
 import time
 import os
 import warnings
+import yaml
 warnings.simplefilter("once")
 
 try:
@@ -43,10 +44,10 @@ class SSC32(object):
     
     
 
-    def __init__(self, port, baudrate, count=32, timeout=1, config=None, autocommit=None):
+    def __init__(self, port=None, baudrate=None, count=32, timeout=1, config=None, autocommit=None):
         """
-        :param str port: Serial port
-        :param int baudrate: Serial speed
+        :param str port: (Optional if config not specified) Serial port
+        :param int baudrate: (Optional if config not specified) Serial speed
         :param int count: (Optional) Servo count. On original SSC32 need to be set to 32
         :param str config: (Optional)  Configuration file which contains servo names and limits
         :param bool autocommit: (Optional) Autocommit changes as soon as the servo postion is changed
@@ -55,11 +56,15 @@ class SSC32(object):
         """
         self.config = None
         self.description = None
-
         self.autocommit = autocommit
         
+        if config:
+            self.load_config(config)
+            
+        else:
+            self.ser = SSC32Serial(port, baudrate, timeout=timeout)
+        
         ## Create serial connection
-        self.ser = SSC32Serial(port, baudrate, timeout=timeout)
         self.ser.flush()
         self.ser.flushInput()
         
@@ -68,10 +73,8 @@ class SSC32(object):
         if (not "SSC32" in version):
             raise Exception("Device on port {} is not a valid SSC32 board. Make sure the board is powered and baud rate is correct. Received firmware version: ".format(port, version))
         
-        self._servos = [Servo(self, self._servo_on_changed, i) for i in xrange(count)]
-
-        if config:
-            self.load_config(config)
+        if not config:
+            self._servos = [Servo(self, self._servo_on_changed, i) for i in xrange(count)]
 
     def close(self):
         """
@@ -416,21 +419,29 @@ class SSC32(object):
         :param str config: Path to configuration file.
         """
         self.config = config
-        self.description = ''
-        with open(config, 'r') as fd:
-            for line in fd.readlines():
-                if line.startswith('#~ '):
-                    self.description += line[2:].strip() + '\n'
-                    continue
-                elif line.startswith('#') or not line:
-                    continue
-                dat = line.split()
-                servo = self._servos[int(dat[1])]
-                servo.name = dat[0].upper()
-                servo.min = int(dat[2])
-                servo.max = int(dat[3])
-                servo.deg_min = float(dat[4])
-                servo.deg_max = float(dat[5])
+        
+        with open(config, 'r') as f:
+            data = yaml.load(f.read())
+            
+        self.description = data["description"]
+        self.autocommit = data["autocommit"]
+        
+        self.ser = SSC32Serial(
+            data["serial"]["port"],
+            data["serial"]["baud"],
+            timeout=data["serial"]["timeout"])
+        
+        self._servos = []
+        for entry in data["servos"]:
+            servo = Servo(self, self._servo_on_changed, entry["_number"])
+            servo.name = entry["_name"]
+            servo.min = entry["pwm_min"]
+            servo.max = entry["pwm_max"]
+            servo.deg_max = entry["degrees_min"]
+            servo.deg_min = entry["degrees_max"]
+            servo._pos = 1500
+            
+            self._servos.append(servo)
 
 
     def save_config(self, config=None):
@@ -441,18 +452,31 @@ class SSC32(object):
         """
         if config is None:
             config = self.config
-        with open(config, 'w') as fd:
-            if self.description:
-                fd.write(''.join(
-                    ['#~ ' + line + '\n' for line 
-                     in self.description.splitlines()]))
-            fd.write('# name\t#\tmin\tmax\tmin°\tmax°\n')
-            for servo in self._servos:
-                if servo.name is not None:
-                    fd.write('\t'.join([str(item) for item in [
-                        servo.name.upper(), servo.num,
-                        servo.min, servo.max,
-                        servo.deg_min, servo.deg_max]]) + '\n')
+        
+        data = dict()  
+        data["description"] = self.description
+        data["autocommit"] = self.autocommit
+            
+        
+        data["serial"] = dict()
+        data["serial"]["port"] = self.ser.port
+        data["serial"]["baud"] = self.ser.baudrate
+        data["serial"]["timeout"] = self.ser.timeout
+        
+        
+        data["servos"] = list()
+        for s in self._servos:
+            entry = dict()
+            entry["_name"] = s.name
+            entry["_number"] = s.num
+            entry["pwm_max"] = s.max
+            entry["pwm_min"] = s.min
+            entry["degrees_max"] = s.deg_max
+            entry["degrees_min"] = s.deg_min
+            data["servos"].append(entry)
+        
+        with open(config, 'w') as f:
+            yaml.dump(data, f, default_flow_style=False)
 
 
 class SSC32Serial(serial.Serial):
@@ -561,11 +585,10 @@ class Servo(object):
             name = ' '+self._name
         else:
             name = ''
-        return '<Servo{0}: #{1} name={8} pos={2}({5}°) range={3}...{4}({6}°...{7}°)>'.format(
+        return '<Servo{0}: #{1} pos={2}({5}°) range={3}...{4}({6}°...{7}°)>'.format(
             name, self.num,
             self._pos, self.min, self.max,
-            self.degrees, self.deg_min, self.deg_max,
-            self._name)
+            self.degrees, self.deg_min, self.deg_max)
 
     @property
     def no(self):
