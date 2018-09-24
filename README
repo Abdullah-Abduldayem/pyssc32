@@ -11,6 +11,8 @@ Installation
 ============
 
 ::
+    # Uninstall previously installed version of pyssc32
+    sudo pip uninstall pyssc32
 
     git clone https://github.com/Abdullah-Abduldayem/pyssc32.git
     cd pyssc32

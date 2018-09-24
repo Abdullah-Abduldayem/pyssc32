@@ -1,24 +1,50 @@
-import sys
-sys.path.append("..")
 import ssc32
 import time
+import sys
 
-ssc = ssc32.SSC32("/dev/ttyUSB0", 115200, count=16)
+ssc = ssc32.SSC32("/dev/ttyUSB0", 115200, count=32)
 print('Version', ssc.get_firmware_version())
 print('is_done', ssc.is_done())
 
-## Move to -50 degrees
-joint = ssc[0]
-joint.degrees = -50
-ssc.commit()
+
+ssc[0].name = "fl_base"
+ssc[1].name = "fl_thigh"
+ssc[2].name = "fl_toe"
+
+ssc[8].name = "bl_base"
+ssc[9].name = "bl_thigh"
+ssc[10].name = "bl_toe"
+
+ssc[16].name = "fr_base"
+ssc[17].name = "fr_thigh"
+ssc[18].name = "fr_toe"
+
+ssc[24].name = "br_base"
+ssc[25].name = "br_thigh"
+ssc[26].name = "br_toe"
+
+
+print(ssc[26].no)
+
+## Move to 0 degrees
+joint = ssc["bl_toe"]
+joint.degrees = 0
+ssc.commit(300)
 ssc.wait_for_movement_completion()
+
+
 print('query_pulse_width', ssc.query_pulse_width(joint))
 
 ## Cancel a joint movement half-way
-joint.degrees = 0
-ssc.commit(2000)
+joint.degrees = 50
+ssc.commit(1000)
 time.sleep(0.5)
 ssc.stop_servo(joint)
+print("Stopped")
+
+print("Done", ssc.is_done())
+
+sys.exit()
 
 ## Test digital output
 for _ in range(2):

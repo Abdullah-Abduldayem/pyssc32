@@ -8,7 +8,6 @@ __version_tuple__ = (0, 5, 0)
 __version__ = '{0}.{1}.{2}'.format(*__version_tuple__)
 
 from .ssc32 import *
-from .servo import *
 from .script import *
 
 try:

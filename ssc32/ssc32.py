@@ -9,9 +9,8 @@ import sys
 import struct
 import time
 import os
-
-sys.path.append('..')
-from ssc32.servo import Servo
+import warnings
+warnings.simplefilter("once")
 
 try:
     xrange
@@ -19,60 +18,8 @@ except NameError:
     xrange = range
 
 __all__ = [
-    'SSC32'
+    'SSC32', "Servo"
 ]
-
-
-class SSC32Serial(serial.Serial):
-    """
-    Serial interfacing class. Particularly useful for automatically adding 
-    carriage return (CR, \r, 0x0D) and reading until CR is reached
-    """
-
-    def __init__(self, port, baudrate, timeout=1):
-        super(SSC32Serial, self).__init__(port, baudrate, timeout=timeout)
-
-        # for baudrate detection on Open Robotics controllers
-        self.write_line('\r'*10)
-        
-    
-    def write_line(self, val):
-        """
-        Write byte string with CR line terminator.
-        For python3, data is automatically encoded into a byte string to avoid unicode conflicts.
-        
-        Args:
-            val (str): String to write
-        """
-        val += "\r"
-        if sys.version_info >= (3, 0):
-            val = val.encode()
-        
-        self.write(val)
-    
-    
-    def read_line(self, size=500):
-        """
-        Read line until a CR (carriage return) is detected
-        
-        Args:
-            size (int, optional): Maximum buffer length.
-        
-        Returns:
-            str: Read string.
-        """
-        
-        val = self.read_until('\r', size)
-        
-        if (len(val) > 0):
-            if (val[-1] == "\r"):
-                val = val[0:-1]
-                
-        if sys.version_info >= (3, 0):
-            val = val.decode()
-            
-        return val
-    
 
 class SSC32(object):
     """
@@ -119,9 +66,9 @@ class SSC32(object):
         ## Check that this is actually an SSC32 board
         version = self.get_firmware_version()
         if (not "SSC32" in version):
-            raise Exception("Device on port {} is not a valid SSC32 board. Make sure the baud rate is correct. Received firmware version: ".format(port, version))
+            raise Exception("Device on port {} is not a valid SSC32 board. Make sure the board is powered and baud rate is correct. Received firmware version: ".format(port, version))
         
-        self._servos = [Servo(self._servo_on_changed, i) for i in xrange(count)]
+        self._servos = [Servo(self, self._servo_on_changed, i) for i in xrange(count)]
 
         if config:
             self.load_config(config)
@@ -257,7 +204,7 @@ class SSC32(object):
             L = "H"
         
         serv = self[channel]
-        self.ser.write_line('#{}{}'.format(serv.no, L))
+        self.ser.write_line('#{}{}'.format(serv.num, L))
         
     def set_byte_output(self, bank, value):
         """
@@ -312,7 +259,7 @@ class SSC32(object):
         :rtype: int
         """
         serv = self[servo]
-        self.ser.write_line("QP{}".format(serv.no))
+        self.ser.write_line("QP{}".format(serv.num))
         
         r = self.ser.read(1)
         r = struct.unpack('B', r)[0]*10
@@ -327,7 +274,7 @@ class SSC32(object):
         :type servo: int or str or ssc32.Servo
         """
         serv = self[servo]
-        self.ser.write_line('STOP {}'.format(serv.no))
+        self.ser.write_line('STOP {}'.format(serv.num))
 
 
     ##########
@@ -434,9 +381,21 @@ class SSC32(object):
     def wait_for_movement_completion(self):
         """
         Wait for movement to end
+        
+        For some reason, is_done() sometimes sticks to False, even if the joint has moved to the target.
+        If is_done returns false, but the joint angles have reached the target position, we will consider that a success
         """
         
         while not self.is_done():
+            done = True
+            for s in self._servos:
+                if not s.is_done():
+                    done = False
+                    break
+            
+            if (done):
+                break
+            
             time.sleep(0.01)
 
 
@@ -484,6 +443,269 @@ class SSC32(object):
             for servo in self._servos:
                 if servo.name is not None:
                     fd.write('\t'.join([str(item) for item in [
-                        servo.name.upper(), servo.no,
+                        servo.name.upper(), servo.num,
                         servo.min, servo.max,
                         servo.deg_min, servo.deg_max]]) + '\n')
+
+
+class SSC32Serial(serial.Serial):
+    """
+    Serial interfacing class. Particularly useful for automatically adding 
+    carriage return (CR, \r, 0x0D) and reading until CR is reached
+    """
+
+    def __init__(self, port, baudrate, timeout=1):
+        super(SSC32Serial, self).__init__(port, baudrate, timeout=timeout)
+
+        # for baudrate detection on Open Robotics controllers
+        self.write_line('\r'*10)
+        
+    
+    def write_line(self, val):
+        """
+        Write byte string with CR line terminator.
+        For python3, data is automatically encoded into a byte string to avoid unicode conflicts.
+        
+        Args:
+            val (str): String to write
+        """
+        val += "\r"
+        if sys.version_info >= (3, 0):
+            val = val.encode()
+        
+        self.write(val)
+    
+    
+    def read_line(self, size=500):
+        """
+        Read line until a CR (carriage return) is detected
+        
+        Args:
+            size (int, optional): Maximum buffer length.
+        
+        Returns:
+            str: Read string.
+        """
+        
+        val = self.read_until('\r', size)
+        
+        if (len(val) > 0):
+            if (val[-1] == "\r"):
+                val = val[0:-1]
+                
+        if sys.version_info >= (3, 0):
+            val = val.decode()
+            
+        return val
+
+
+class Servo(object):
+    """
+    Servo control class
+
+    >>> servo.position
+    1500
+    >>> servo.position = 2500
+    >>> servo.position
+    2500
+    >>> servo.max = 1600
+    >>> servo.position = 2400
+    1600
+    """
+    MIN_CHANNEL = 0
+    MAX_CHANNEL = 31
+    def __init__(self, ssc, on_changed_callback, num, name=None, pos=1500):
+        """
+        :param func on_changed_callback: Callback function position is changed
+        :param int num: Servo number
+        :param str name: (Optional) Servo name
+        :param int pos: (Optional) Initial position (in PWM)
+        
+        :raise ValueError: if `num` not an integer in the range [0, 31]
+        :raise TypeError: if `pos` not an integer
+        """
+        
+        if(type(num) != int or num<Servo.MIN_CHANNEL or num>Servo.MAX_CHANNEL):
+            raise ValueError("Channel number must be an integer between {} and {}".format(
+                Servo.MIN_CHANNEL,
+                Servo.MAX_CHANNEL))
+        
+        self.min = 500
+        self.max = 2500
+        self.reached_threshold = 10
+        if(type(pos) != int):
+            raise TypeError("Position must be an integer")
+        
+        self.ssc = ssc
+        self.on_changed_callback = on_changed_callback
+        self.name = name
+        self.num = num
+        
+        self.position = pos
+        self._speed = None
+        
+        self.deg_max = 90.0
+        self.deg_min = -90.0
+        self.is_changed = False
+        self.is_moving = False
+
+    def __repr__(self):
+        if self._name is not None:
+            name = ' '+self._name
+        else:
+            name = ''
+        return '<Servo{0}: #{1} name={8} pos={2}({5}°) range={3}...{4}({6}°...{7}°)>'.format(
+            name, self.num,
+            self._pos, self.min, self.max,
+            self.degrees, self.deg_min, self.deg_max,
+            self._name)
+
+    @property
+    def no(self):
+        """
+        DEPRECATED: Get servo number
+
+        :type: int
+        """
+        warnings.warn("Use servo.num insead of servo.no", DeprecationWarning)
+        
+        return self.num
+
+    @property
+    def position(self):
+        """
+        Target position using PWM.
+
+        :type: int or float
+        """
+        return self._pos
+
+    @position.setter
+    def position(self, pos):
+        pos = int(pos)
+        if pos > self.max:
+            pos = self.max
+        elif pos < self.min:
+            pos = self.min
+
+        self.is_changed = True
+        self._pos = pos
+
+        self.on_changed_callback()
+
+    @property
+    def current_position(self):
+        """
+        Current position using PWM.
+
+        :type: int
+        """
+        return self.ssc.query_pulse_width(self)
+        
+
+    @property
+    def speed(self):
+        """
+        Maximum speed of servo (unknown units)
+
+        :type: int, float or None
+        """
+        return self._speed
+    
+    @speed.setter
+    def speed(self, val):
+        if (val is None or val == -1):
+            self._speed = None
+        elif(type(val) != int or type(val) != float):
+            raise TypeError("Speed must be int or float.")
+        else:
+            self._speed = int(val)
+
+    @property
+    def name(self):
+        """
+        Name for servo
+    
+        :type: str or None
+        """
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        if (name is not None):
+            self._name = name.upper()
+        else:
+            self._name = None
+
+    @property
+    def degrees(self):
+        """
+        Target position in degrees.
+
+        :type: float
+        """
+        
+        deltapos = self._pos - self.min
+        return self.deg_min + \
+                (abs(self.deg_min)*deltapos + abs(self.deg_max)*deltapos) \
+                / (self.max - self.min)
+
+    @degrees.setter
+    def degrees(self, deg):
+        deg = float(deg)
+        pos = self.min + \
+                (deg - self.deg_min) * (self.max - self.min) \
+                / (abs(self.deg_min) + abs(self.deg_max))
+        self.position = pos
+
+    @property
+    def radians(self):
+        """
+        Target position in radians.
+
+        :type: float
+        """
+        return math.radians(self.degrees)
+
+    @radians.setter
+    def radians(self, rad):
+        self.degrees = math.degrees(rad)
+
+    
+    def is_done(self):
+        """
+        Check if the servo has reached the target position
+        
+        :rtype: bool
+        """
+        if (self.is_moving):
+            reached = abs(self.position == self.current_position) < self.reached_threshold
+            if (reached):
+                self.is_moving = False
+                
+            return reached
+            
+        else:
+            return False
+
+    def _get_cmd_string(self):
+        """
+        Create the command string to send to the control board for this particular servo
+        
+        :return: Command string
+        :rtype: str
+        """
+        if self.is_changed:
+            self.is_changed = False
+            self.is_moving = True
+            
+            cmd = '#{channel}P{pulse_width}'.format(
+                channel=self.num,
+                pulse_width=self._pos)
+            
+            if (self._speed):
+                cmd += "S{speed}".format(speed=self._speed)
+            
+            return cmd
+        else:
+            return ''
