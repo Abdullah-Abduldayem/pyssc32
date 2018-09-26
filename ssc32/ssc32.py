@@ -435,10 +435,11 @@ class SSC32(object):
         for entry in data["servos"]:
             servo = Servo(self, self._servo_on_changed, entry["_number"])
             servo.name = entry["_name"]
-            servo.min = entry["pwm_min"]
-            servo.max = entry["pwm_max"]
+            servo.pwm_center = entry["pwm_center"]
+            servo.pwm_per_degree = entry["pwm_per_degree"]
             servo.deg_max = entry["degrees_min"]
             servo.deg_min = entry["degrees_max"]
+            servo._update_pwm_limits()
             servo._pos = 1500
             
             self._servos.append(servo)
@@ -469,10 +470,11 @@ class SSC32(object):
             entry = dict()
             entry["_name"] = s.name
             entry["_number"] = s.num
-            entry["pwm_max"] = s.max
-            entry["pwm_min"] = s.min
+            entry["pwm_center"] = s.pwm_center
+            entry["pwm_per_degree"] = s.pwm_per_degree
             entry["degrees_max"] = s.deg_max
             entry["degrees_min"] = s.deg_min
+            entry["inverted"] = s.is_inverted
             data["servos"].append(entry)
         
         with open(config, 'w') as f:
@@ -561,24 +563,40 @@ class Servo(object):
                 Servo.MIN_CHANNEL,
                 Servo.MAX_CHANNEL))
         
-        self.min = 500
-        self.max = 2500
-        self.reached_threshold = 10
-        if(pos is not None and type(pos) != int):
-            raise TypeError("Position must be an integer")
-        
+        #####
+        ## PARAMS
+        #####
         self.ssc = ssc
         self.on_changed_callback = on_changed_callback
         self.name = name
         self.num = num
         
+        if(pos is not None and type(pos) != int):
+            raise TypeError("Position must be an integer")
         self.position = pos
-        self._speed = None
         
-        self.deg_max = 90.0
-        self.deg_min = -90.0
+        #####
+        ## INTERNAL
+        #####
+        #self.min = 500
+        #self.max = 2500
+        self.reached_threshold = 10
+        
+        
+        self.pwm_center = 1500
+        self.pwm_per_degree = 5.56
+        self.deg_max = 180
+        self.deg_min = -180
+        self._update_pwm_limits()
+        
+        self.is_inverted = False
         self.is_changed = False
         self.is_moving = False
+        
+        
+        self._speed = None
+        
+        
 
     def __repr__(self):
         if self._name is not None:
@@ -590,6 +608,13 @@ class Servo(object):
             self._pos, self.min, self.max,
             self.degrees, self.deg_min, self.deg_max)
 
+    def _update_pwm_limits(self):
+        a = int(self.pwm_center + self.deg_min*self.pwm_per_degree)
+        b = int(self.pwm_center + self.deg_max*self.pwm_per_degree)
+        
+        self.min = min(a,b)
+        self.max = max(a,b)
+        
     @property
     def no(self):
         """
@@ -678,18 +703,41 @@ class Servo(object):
         :type: float
         """
         
+        return (self._pos - self.pwm_center)/self.pwm_per_degree
+        
+        
+        """
+        if (not self.is_inverted):
+            deg_min = self.deg_min
+            deg_max = self.deg_max
+        else:
+            deg_min = self.deg_max
+            deg_max = self.deg_min
+        
         deltapos = self._pos - self.min
-        return self.deg_min + \
-                (abs(self.deg_min)*deltapos + abs(self.deg_max)*deltapos) \
-                / (self.max - self.min)
+        return deg_min +  deltapos * (abs(deg_min) + abs(deg_max))/(self.max - self.min)
+        """
 
     @degrees.setter
     def degrees(self, deg):
         deg = float(deg)
-        pos = self.min + \
-                (deg - self.deg_min) * (self.max - self.min) \
-                / (abs(self.deg_min) + abs(self.deg_max))
+        
+        pos = int(deg*self.pwm_per_degree + self.pwm_center)
         self.position = pos
+        
+        """
+        if (not self.is_inverted):
+            deg_min = self.deg_min
+            deg_max = self.deg_max
+        else:
+            deg_min = self.deg_max
+            deg_max = self.deg_min
+            
+        pos = self.min + \
+                (deg - deg_min) * (self.max - self.min) \
+                / (abs(deg_min) + abs(deg_max))
+        self.position = pos
+        """
 
     @property
     def radians(self):
