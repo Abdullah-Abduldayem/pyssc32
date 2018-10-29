@@ -71,7 +71,7 @@ class SSC32(object):
         ## Check that this is actually an SSC32 board
         version = self.get_firmware_version()
         if (not "SSC32" in version):
-            raise Exception("Device on port {} is not a valid SSC32 board. Make sure the board is powered and baud rate is correct. Received firmware version: ".format(port, version))
+            raise Exception("Device on port {} is not a valid SSC32 board. Make sure the board is powered and baud rate is correct. Received firmware version: ".format(self.ser.port, version))
         
         if not config:
             self._servos = [Servo(self, self._servo_on_changed, i) for i in xrange(count)]
